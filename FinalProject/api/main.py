@@ -5,7 +5,8 @@ from .routers import index as indexRoute
 from .models import model_loader
 from .dependencies.config import conf
 from .schemas import sandwiches as schemas
-from .controllers import sandwiches
+from .schemas import resources as resource_schemas
+from .controllers import sandwiches, resources
 from .dependencies.database import get_db
 
 from sqlalchemy.orm import Session
@@ -72,3 +73,46 @@ def delete_one_sandwich(sandwich_id: int, db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     uvicorn.run(app, host=conf.app_host, port=conf.app_port)
+
+@app.post("/resources/", response_model=resource_schemas.Resource, tags=["Resources"])
+def create_resource(resource: resource_schemas.ResourceCreate, db: Session = Depends(get_db)):
+    return resources.create(db=db, resource=resource)
+
+
+@app.get("/resources/", response_model=list[resource_schemas.Resource], tags=["Resources"])
+def read_resources(db: Session = Depends(get_db)):
+    return resources.read_all(db)
+
+
+@app.get("/resources/{resource_id}", response_model=resource_schemas.Resource, tags=["Resources"])
+def read_one_resource(resource_id: int, db: Session = Depends(get_db)):
+    resource = resources.read_one(db, resource_id=resource_id)
+
+    if resource is None:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    return resource
+
+
+@app.put("/resources/{resource_id}", response_model=resource_schemas.Resource, tags=["Resources"])
+def update_one_resource(
+    resource_id: int,
+    resource: resource_schemas.ResourceUpdate,
+    db: Session = Depends(get_db)
+):
+    resource_db = resources.read_one(db, resource_id=resource_id)
+
+    if resource_db is None:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    return resources.update(db=db, resource=resource, resource_id=resource_id)
+
+
+@app.delete("/resources/{resource_id}", tags=["Resources"])
+def delete_one_resource(resource_id: int, db: Session = Depends(get_db)):
+    resource = resources.read_one(db, resource_id=resource_id)
+
+    if resource is None:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    return resources.delete(db=db, resource_id=resource_id)
